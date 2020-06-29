@@ -38,7 +38,7 @@ def get_property_link(page_url):
         property_links.append(prop_link)
     return property_links
 
-def get_properties(data):
+def get_property(data):
     #iterate each page link, get the individual property links and access
     #receives dictionary of one property
     base_url = "https://search.albertare.com/homedetails"
