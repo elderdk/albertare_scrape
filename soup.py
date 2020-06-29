@@ -2,8 +2,11 @@ from bs4 import BeautifulSoup
 
 def get_by_selector(soup, selector):
     try:
-        elem = soup.select(selector)
-        return elem
+        elem = soup.select(selector)[0].find_all('li')
+        elem_list = []
+        for e in elem:
+            elem_list.append(e.text)
+        return ', '.join(elem_list)
     except:
         return 'None'
 
