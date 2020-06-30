@@ -1,12 +1,15 @@
 import re
+import os
 import requests
 from soup import get_by_selector, get_prop_details
 from bs4 import BeautifulSoup
 import threading
 import concurrent.futures
+import pandas as pd
 
 
 thread_local = threading.local()
+mdf = pd.DataFrame()
 
 def get_session():
     if not hasattr(thread_local, "session"):
@@ -15,6 +18,10 @@ def get_session():
 
 def get_pages(search_url):
     # retrieve the number of pagination pages to create
+    # https://search.albertare.com/api/properties?city=Calgary&page=1
+    # https://search.albertare.com/api/properties?city=Calgary&page=2
+    # https://search.albertare.com/api/properties?city=Calgary&page=3
+
     response = requests.get(search_url)
     page = "https://search.albertare.com/api/properties?city=Calgary&page="
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -40,13 +47,14 @@ def get_pages(search_url):
     return page_list
 
 def get_property(url):
-    #iterate each page link, get the individual property links and access
-    #receives dictionary of one property
+    #access the individual property site and pull features
+    #like com_ int_ ext_features and style
+
     base_url = "https://search.albertare.com"
     end_url = url
+
     full_url = base_url + end_url
     data = {}
-    print(f"getting {end_url}")
     session = get_session()
     response = session.get(full_url)
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -59,9 +67,12 @@ def get_property(url):
     return data
 
 def get_property_link(page_url):
+    #iterate each link from get_page, make dict for each property (10 in each page)
+    #use get_prop_details to get the features and make complete dict set for each property
+
+    global mdf
     session = get_session()
-    #go through the json info, make a list of dict
-    property_links = []
+    property_data = []
     data = session.get(page_url).json()
     for link in data['data']:
         prop_link = {}
@@ -69,8 +80,8 @@ def get_property_link(page_url):
         for att, val in link['attributes'].items():
             prop_link[att] = val
         prop_link['status'] = link['status']['data']['text']
-        prop_link['buyer_agent'] = link['buyerAgent']
         prop_link['url'] = link['meta']['data']['url']
+        prop_link.pop('location', None)
 
         #access the site and get the feature information
         features = get_property(prop_link['url'])
@@ -78,17 +89,41 @@ def get_property_link(page_url):
         for k, v in features.items():
             prop_link[k] = v
 
-        property_links.append(prop_link)
+        property_data.append(prop_link)
 
-    return property_links
+    mdf = make_dataframe(property_data)
+    
+    return mdf
+
+def make_dataframe(property_data):
+    global mdf
+    for prop in property_data:
+        df = pd.DataFrame([prop]) #without [] this raises scalar value error. But dictionary doesn't contain any list. So why?
+        print(f"Scraped {len(df)} from {prop['url']}")
+        mdf = mdf.append(df)
+        print(len(mdf))
+
+    return mdf
+
+def write_to_excel(mdf):
+    dirname = os.path.dirname(os.path.realpath(__file__))
+    fname = os.path.join(dirname, 'result.xlsx')
+
+    if not os.path.isfile(fname):
+        import openpyxl
+        wb = openpyxl.Workbook()
+        wb.save(fname)
+    
+    with pd.ExcelWriter(fname, mode="a", engine="openpyxl") as writer:
+        mdf.to_excel(writer)
+    
 
 def get_all_properties(links):
+    #master concurrency function
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    global mdf
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor: #seems multiple workers can't write to a global variable at the same time
         executor.map(get_property_link, links)
 
-
-#soup the contents, return a dataframe
-
-#save into excel file
-
+    write_to_excel(mdf)

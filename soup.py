@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 
 def get_by_selector(soup, selector):
+    #soup helper function to search by selector given
     try:
         elem = soup.select(selector)[0].find_all('li')
         elem_list = []
@@ -11,6 +12,7 @@ def get_by_selector(soup, selector):
         return 'None'
 
 def get_prop_details(soup):
+    #gets prop features from the individual prop site
 
     details = {}
 
