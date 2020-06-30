@@ -10,6 +10,7 @@ import pandas as pd
 
 thread_local = threading.local()
 mdf = pd.DataFrame()
+lock = threading.Lock()
 
 def get_session():
     if not hasattr(thread_local, "session"):
@@ -91,17 +92,17 @@ def get_property_link(page_url):
 
         property_data.append(prop_link)
 
-    mdf = make_dataframe(property_data)
-    
+    with lock:
+        mdf = make_dataframe(property_data)
+
+    print(len(mdf))    
     return mdf
 
 def make_dataframe(property_data):
     global mdf
     for prop in property_data:
         df = pd.DataFrame([prop]) #without [] this raises scalar value error. But dictionary doesn't contain any list. So why?
-        print(f"Scraped {len(df)} from {prop['url']}")
         mdf = mdf.append(df)
-        print(len(mdf))
 
     return mdf
 
@@ -123,7 +124,7 @@ def get_all_properties(links):
 
     global mdf
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor: #seems multiple workers can't write to a global variable at the same time
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor: #seems multiple workers can't write to a global variable at the same time
         executor.map(get_property_link, links)
 
     write_to_excel(mdf)

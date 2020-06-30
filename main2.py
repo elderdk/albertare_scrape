@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
     t1 = time.time()
 
-    mdf = get_all_properties(page_list[:5]) #concurrency is working, need to work on the rest of the plan in the bottom of functions.py
+    mdf = get_all_properties(page_list) #concurrency is working, need to work on the rest of the plan in the bottom of functions.py
 
     elapse = time.time() - t1
     print(elapse)
